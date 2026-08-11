@@ -166,6 +166,8 @@ def clean_text(text: str) -> str:
     text = re.sub(r'!\[[^\]]*\]\([^)]*\)', '', text)
     text = re.sub(r'\[([^\]]+)\]\([^)]*\)', r'\1', text)
     text = re.sub(r'https?://\S+', '', text)
+    # 7b) 删除 MEDIA: 附件标签(Hermes 桌面端混入的本地路径, 念出来是乱码)
+    text = re.sub(r'MEDIA:\S+', '', text)
     # 8) 行首列表符号
     text = re.sub(r'^\s*[-*+]\s+', '', text, flags=re.M)
     # 9) 折叠空白, 去掉标点前的空格
