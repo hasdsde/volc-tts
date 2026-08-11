@@ -162,22 +162,40 @@ def clean_text(text: str) -> str:
     text = re.sub(r'^#{1,6}\s*', '', text, flags=re.M)
     # 6) 引用标记
     text = re.sub(r'^>\s?', '', text, flags=re.M)
-    # 7) 链接 [文字](url) 保留文字; 裸 URL 删除(念出来是乱码)
+    # 7) 链接 [文字](url) 保留文字; 裸 URL 念出来是乱码, 换成"这个链接"
+    # (排除中文标点结尾, 避免 URL 后紧跟的逗号/句号被 \S+ 吃掉)
     text = re.sub(r'!\[[^\]]*\]\([^)]*\)', '', text)
     text = re.sub(r'\[([^\]]+)\]\([^)]*\)', r'\1', text)
-    text = re.sub(r'https?://\S+', '', text)
-    # 7b) 删除 MEDIA: 附件标签(Hermes 桌面端混入的本地路径, 念出来是乱码)
+    text = re.sub(r'https?://[^\s，。、！？；：]+', '这个链接', text)
+    # 7b/7c 附件归类: 按扩展名把路径/文件名换成朗读短语, 避免念乱码。
+    # 直接删会让句子断掉("我把报告放在「」"), 换成"这个文件/图片/音频"更自然。
+    _IMG_EXTS = ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg', '.ico')
+    _AUDIO_EXTS = ('.mp3', '.wav', '.ogg', '.opus', '.m4a', '.flac', '.aac', '.wma')
+    _VIDEO_EXTS = ('.mp4', '.mkv', '.avi', '.mov', '.webm')
+
+    def _media_phrase(token: str) -> str:
+        ext = os.path.splitext(token.rstrip())[1].lower()
+        if ext in _IMG_EXTS:
+            return '这个图片'
+        if ext in _AUDIO_EXTS:
+            return '这个音频'
+        if ext in _VIDEO_EXTS:
+            return '这个视频'
+        return '这个文件'
+
+    # 7b) MEDIA: 附件标签(Hermes 桌面端混入的本地路径)
     # 兼容 MEDIA:/path 和 MEDIA: /path(冒号后带空格, Hermes 官方正则允许 \s*)
-    text = re.sub(r'MEDIA:\s*\S+', '', text)
-    # 7c) 兜底: 7b 只删带前缀的, 桌面端语音模式可能只传残留的绝对路径或
-    # 裸文件名(如 tts_20260811_233613_376221.mp3), 同样念出来是乱码。
+    text = re.sub(r'MEDIA:\s*\S+', lambda m: _media_phrase(m.group(0)), text)
+    # 7c) 兜底: 7b 只处理带前缀的, 桌面端语音模式可能只传残留的绝对路径或
+    # 裸文件名(如 tts_20260811_233613_376221.mp3), 同样换成朗读短语。
     # 绝对路径(至少一段含字母, 避免误删 2026/08/11、3/4 这类正文):
-    text = re.sub(r'/(?:[\w.-]*[A-Za-z][\w.-]*/)+[\w.-]*', '', text)
+    text = re.sub(r'/(?:[\w.-]*[A-Za-z][\w.-]*/)+[\w.-]*',
+                  lambda m: _media_phrase(m.group(0)), text)
     # 裸附件文件名(带扩展名, 词中须含 . - _ 之一, 避免误删 "mp3" 等单词):
     text = re.sub(
         r'(?<![\w.])[\w][\w.-]*[._-][\w.-]*\.'
         r'(?:mp3|wav|ogg|opus|m4a|flac|png|jpe?g|gif|webp|pdf|docx?|xlsx?|pptx?|zip|7z|tar(?:\.gz)?)\b',
-        '', text)
+        lambda m: _media_phrase(m.group(0)), text)
     # 8) 行首列表符号
     text = re.sub(r'^\s*[-*+]\s+', '', text, flags=re.M)
     # 9) 折叠空白, 去掉标点前的空格
