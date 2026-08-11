@@ -167,7 +167,17 @@ def clean_text(text: str) -> str:
     text = re.sub(r'\[([^\]]+)\]\([^)]*\)', r'\1', text)
     text = re.sub(r'https?://\S+', '', text)
     # 7b) 删除 MEDIA: 附件标签(Hermes 桌面端混入的本地路径, 念出来是乱码)
-    text = re.sub(r'MEDIA:\S+', '', text)
+    # 兼容 MEDIA:/path 和 MEDIA: /path(冒号后带空格, Hermes 官方正则允许 \s*)
+    text = re.sub(r'MEDIA:\s*\S+', '', text)
+    # 7c) 兜底: 7b 只删带前缀的, 桌面端语音模式可能只传残留的绝对路径或
+    # 裸文件名(如 tts_20260811_233613_376221.mp3), 同样念出来是乱码。
+    # 绝对路径(至少一段含字母, 避免误删 2026/08/11、3/4 这类正文):
+    text = re.sub(r'/(?:[\w.-]*[A-Za-z][\w.-]*/)+[\w.-]*', '', text)
+    # 裸附件文件名(带扩展名, 词中须含 . - _ 之一, 避免误删 "mp3" 等单词):
+    text = re.sub(
+        r'(?<![\w.])[\w][\w.-]*[._-][\w.-]*\.'
+        r'(?:mp3|wav|ogg|opus|m4a|flac|png|jpe?g|gif|webp|pdf|docx?|xlsx?|pptx?|zip|7z|tar(?:\.gz)?)\b',
+        '', text)
     # 8) 行首列表符号
     text = re.sub(r'^\s*[-*+]\s+', '', text, flags=re.M)
     # 9) 折叠空白, 去掉标点前的空格
