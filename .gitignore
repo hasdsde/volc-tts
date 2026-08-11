@@ -1,0 +1,21 @@
+# 密钥与敏感文件 — 严禁提交
+.env
+*.env
+.env.*
+*.key
+*.pem
+*_key.txt
+credentials.json
+
+# 备份文件
+*.bak
+*.bak-*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 系统
+.DS_Store
