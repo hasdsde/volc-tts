@@ -202,6 +202,15 @@ def clean_text(text: str) -> str:
     text = re.sub(r'[ \t]+', ' ', text)
     text = re.sub(r'\s+([，。、！？；：,.!?;:])', r'\1', text)
     text = re.sub(r'\n{3,}', '\n\n', text)
+    # 10) 只保留中文/英文/数字 + 空白(空格做英文单词分隔, 换行做句子分隔),
+    #     其余符号(中文标点/英文标点/emoji/斜杠/特殊字符...) 全部删除。
+    #     注意: 数字保留(用户要求), 删符号后英文单词间会粘连(如 state-of-the-art
+    #     → stateoftheart), 这是"符号全删"的预期代价。
+    text = re.sub(r'[^\u4e00-\u9fffA-Za-z0-9\s]', '', text)
+    # 11) 过滤后重新折叠: 符号删除常留下 "字 字" 式残留空白
+    text = re.sub(r'[ \t]+', ' ', text)
+    text = re.sub(r' *\n *', '\n', text)
+    text = re.sub(r'\n{3,}', '\n\n', text)
     return text.strip()
 
 
